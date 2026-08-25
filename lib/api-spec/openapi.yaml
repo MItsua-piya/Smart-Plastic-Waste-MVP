@@ -1,22 +1,25 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Smart Plastic Waste Management API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
-    description: Health operations
+  - name: dashboard
+  - name: centres
+  - name: deposits
+  - name: pickups
+  - name: routes
+  - name: hotspots
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,13 +27,303 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /dashboard:
+    get:
+      operationId: getDashboard
+      tags: [dashboard]
+      summary: Get dashboard summary
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dashboard"
+  /centres:
+    get:
+      operationId: listCentres
+      tags: [centres]
+      summary: List collection centres
+      responses:
+        "200":
+          description: Collection centres
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Centre"
+  /deposits:
+    get:
+      operationId: listDeposits
+      tags: [deposits]
+      summary: List recent deposits
+      responses:
+        "200":
+          description: Deposits
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Deposit"
+    post:
+      operationId: createDeposit
+      tags: [deposits]
+      summary: Record a plastic deposit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DepositInput"
+      responses:
+        "201":
+          description: Deposit recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Deposit"
+  /pickups:
+    get:
+      operationId: listPickups
+      tags: [pickups]
+      summary: List pickup requests
+      responses:
+        "200":
+          description: Pickup requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Pickup"
+  /routes/active:
+    get:
+      operationId: getActiveRoute
+      tags: [routes]
+      summary: Get active driver route
+      responses:
+        "200":
+          description: Active route
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Route"
+  /routes/generate:
+    post:
+      operationId: generateRoute
+      tags: [routes]
+      summary: Generate a capacity-aware route
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RouteInput"
+      responses:
+        "201":
+          description: Route generated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Route"
+  /routes/{routeId}/stops/{stopId}:
+    patch:
+      operationId: updateRouteStop
+      tags: [routes]
+      summary: Update a route stop status
+      parameters:
+        - $ref: "#/components/parameters/RouteId"
+        - $ref: "#/components/parameters/StopId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StopStatusInput"
+      responses:
+        "200":
+          description: Stop updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Route"
+  /hotspots:
+    get:
+      operationId: listHotspots
+      tags: [hotspots]
+      summary: List hotspot reports
+      responses:
+        "200":
+          description: Hotspot reports
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Hotspot"
+    post:
+      operationId: createHotspot
+      tags: [hotspots]
+      summary: Report a plastic hotspot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HotspotInput"
+      responses:
+        "201":
+          description: Hotspot reported
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Hotspot"
 components:
+  parameters:
+    RouteId:
+      name: routeId
+      in: path
+      required: true
+      schema: { type: string }
+    StopId:
+      name: stopId
+      in: path
+      required: true
+      schema: { type: string }
   schemas:
     HealthStatus:
       type: object
       properties:
+        status: { type: string }
+      required: [status]
+    Dashboard:
+      type: object
+      required: [totalCollected, activeCentres, pendingPickups, co2Saved, weeklyCollected, categoryBreakdown, recentActivity]
+      properties:
+        totalCollected: { type: number }
+        activeCentres: { type: number }
+        pendingPickups: { type: number }
+        co2Saved: { type: number }
+        weeklyCollected:
+          type: array
+          items: { type: number }
+        categoryBreakdown:
+          type: array
+          items:
+            $ref: "#/components/schemas/CategoryMetric"
+        recentActivity:
+          type: array
+          items:
+            $ref: "#/components/schemas/Activity"
+    CategoryMetric:
+      type: object
+      required: [category, quantity, percentage]
+      properties:
+        category: { type: string }
+        quantity: { type: number }
+        percentage: { type: number }
+    Activity:
+      type: object
+      required: [id, label, detail, timestamp, kind]
+      properties:
+        id: { type: string }
+        label: { type: string }
+        detail: { type: string }
+        timestamp: { type: string }
+        kind: { type: string }
+    Centre:
+      type: object
+      required: [id, name, address, currentQuantity, capacity, thresholdPercent, status, lat, long]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        address: { type: string }
+        currentQuantity: { type: number }
+        capacity: { type: number }
+        thresholdPercent: { type: number }
+        status: { type: string }
+        lat: { type: number }
+        long: { type: number }
+    Deposit:
+      type: object
+      required: [id, citizenName, centreName, category, weight, creditsEarned, timestamp]
+      properties:
+        id: { type: string }
+        citizenName: { type: string }
+        centreName: { type: string }
+        category: { type: string }
+        weight: { type: number }
+        creditsEarned: { type: number }
+        timestamp: { type: string }
+    DepositInput:
+      type: object
+      required: [citizenName, centreId, category, weight]
+      properties:
+        citizenName: { type: string, minLength: 1 }
+        centreId: { type: string }
+        category: { type: string }
+        weight: { type: number, exclusiveMinimum: 0 }
+    Pickup:
+      type: object
+      required: [id, centreName, quantity, priority, status, createdAt]
+      properties:
+        id: { type: string }
+        centreName: { type: string }
+        quantity: { type: number }
+        priority: { type: string }
+        status: { type: string }
+        createdAt: { type: string }
+    Route:
+      type: object
+      required: [id, vehicle, driver, estimatedDistance, totalQuantity, status, stops]
+      properties:
+        id: { type: string }
+        vehicle: { type: string }
+        driver: { type: string }
+        estimatedDistance: { type: number }
+        totalQuantity: { type: number }
+        status: { type: string }
+        stops:
+          type: array
+          items:
+            $ref: "#/components/schemas/RouteStop"
+    RouteStop:
+      type: object
+      required: [id, centreName, address, quantity, status, sequence]
+      properties:
+        id: { type: string }
+        centreName: { type: string }
+        address: { type: string }
+        quantity: { type: number }
+        status: { type: string }
+        sequence: { type: number }
+    RouteInput:
+      type: object
+      properties:
+        vehicleCapacity: { type: number, minimum: 1 }
+    StopStatusInput:
+      type: object
+      required: [status]
+      properties:
         status:
           type: string
-      required:
-        - status
-
+          enum: [Pending, Arrived, Collected, Completed]
+    Hotspot:
+      type: object
+      required: [id, location, description, severity, status, createdAt]
+      properties:
+        id: { type: string }
+        location: { type: string }
+        description: { type: string }
+        severity: { type: string }
+        status: { type: string }
+        createdAt: { type: string }
+    HotspotInput:
+      type: object
+      required: [location, description]
+      properties:
+        location: { type: string, minLength: 1 }
+        description: { type: string, minLength: 1 }
+        severity: { type: string, enum: [Low, Medium, High] }

@@ -6,6 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface HealthStatus {
+export interface Pickup {
+  id: string;
+  centreName: string;
+  quantity: number;
+  priority: string;
   status: string;
+  createdAt: string;
 }

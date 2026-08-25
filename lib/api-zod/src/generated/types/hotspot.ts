@@ -6,6 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface HealthStatus {
+export interface Hotspot {
+  id: string;
+  location: string;
+  description: string;
+  severity: string;
   status: string;
+  createdAt: string;
 }

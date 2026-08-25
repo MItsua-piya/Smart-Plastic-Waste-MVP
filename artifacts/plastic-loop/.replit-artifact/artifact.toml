@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Plastic Loop"
+description = "A role-based plastic waste management platform connecting citizens, collection centres, drivers, and administrators through deposits, pickups, routing, and impact tracking."
+version = "1.0.0"
+id = "artifacts/plastic-loop"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24081
+
+[services.development]
+run = "pnpm --filter @workspace/plastic-loop run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/plastic-loop", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/plastic-loop/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24081"
+BASE_PATH = "/"

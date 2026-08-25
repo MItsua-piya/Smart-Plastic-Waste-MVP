@@ -5,7 +5,8 @@
  * Smart Plastic Waste Management API
  * OpenAPI spec version: 0.1.0
  */
+import type { StopStatusInputStatus } from './stopStatusInputStatus';
 
-export interface HealthStatus {
-  status: string;
+export interface StopStatusInput {
+  status: StopStatusInputStatus;
 }

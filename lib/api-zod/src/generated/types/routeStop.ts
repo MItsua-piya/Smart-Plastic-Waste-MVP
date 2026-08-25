@@ -6,6 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface HealthStatus {
+export interface RouteStop {
+  id: string;
+  centreName: string;
+  address: string;
+  quantity: number;
   status: string;
+  sequence: number;
 }

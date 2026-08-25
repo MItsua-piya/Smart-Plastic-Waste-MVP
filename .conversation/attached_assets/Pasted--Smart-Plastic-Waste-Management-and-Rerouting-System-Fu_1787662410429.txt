@@ -1,0 +1,298 @@
+# Smart Plastic Waste Management and Rerouting System
+## Full Technical & Role-Based Specification (for implementation on Replit)
+
+---
+
+## 1. Project Overview
+
+A centralized, role-based web platform that connects **Citizens**, **Collection Centres**, **Drivers**, and **Administrators** to digitize the plastic-waste collection lifecycle: deposit → inventory tracking → threshold-triggered pickup → capacity-aware route optimization → collection → processing → analytics.
+
+The system uses **conventional, rule-based algorithms only** — no AI/ML:
+- Threshold-trigger logic for pickup requests
+- Capacity-constrained (bin-packing style) request grouping
+- Nearest-neighbour / greedy route sequencing
+
+### 1.1 Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Frontend | React.js (SPA), role-based routing, Axios for API calls |
+| Backend | Node.js + Express.js (REST API) |
+| Database | MongoDB (via Mongoose ODM) |
+| Auth | JWT (JSON Web Tokens) with a `role` claim; bcrypt for password hashing |
+| Maps/Distance | Static lat/long per centre; Haversine distance or a maps API for real routing |
+| Hosting (Replit) | Node backend as one Repl service; React frontend as a separate Repl or same Repl served statically after build |
+
+### 1.2 Architecture
+
+Three-tier client-server architecture:
+- **Presentation Tier** — React SPA with 4 role-specific dashboards
+- **Application Tier** — Express REST API: auth, business logic (deposits, pickups, routing, hotspots, rewards, analytics)
+- **Data Tier** — MongoDB collections accessed via Mongoose
+
+---
+
+## 2. User Roles & Permissions
+
+| Role | Core Capability | Cannot Do |
+|---|---|---|
+| **Citizen** | Deposit plastic, view own history, earn/redeem credits, report hotspots | Cannot access admin/centre/driver endpoints |
+| **Collection Centre Staff** | Record deposits, view/manage own centre stock, trigger pickup requests | Cannot manage other centres, vehicles, or users |
+| **Driver** | View assigned vehicle & route, update pickup status per stop | Cannot create routes, assign vehicles, or edit rewards |
+| **Administrator** | Manage users, centres, vehicles, routes, rewards, hotspots, analytics — full access | N/A (superuser) |
+
+**Authorization rule:** every protected route is guarded by middleware that reads the JWT's `role` claim before executing; a token issued for one role must be rejected on another role's endpoints (e.g., a citizen token must never succeed against `/api/admin/*`).
+
+---
+
+## 3. Role-by-Role Functional Specification
+
+### 3.1 Citizen
+- Register / log in (JWT issued with `role: "citizen"`)
+- View list of nearby registered collection centres (by lat/long or address)
+- Deposit plastic at a centre: submit `category` + `weight` (recorded by centre staff, or self-submitted pending centre verification)
+- View personal deposit history and credit balance
+- Redeem credits against configured rewards (blocked if `creditsUsed > available credits`)
+- Report a plastic hotspot: location (lat/long or address), description, optional severity
+- Track status of submitted hotspot reports (`Reported → Verified → Assigned → Resolved` or `Rejected`)
+
+### 3.2 Collection Centre Staff
+- Log in with centre-scoped account
+- Record a citizen's plastic deposit (category, weight); system computes credits via reward rules and updates `currentQuantity`
+- View current stock level vs. configured `capacity` and threshold percentage
+- View own centre's pending/active pickup requests
+- (Optional) Manually flag a pickup request outside the automatic threshold trigger
+
+### 3.3 Driver
+- Log in with driver-scoped account
+- View currently assigned vehicle and its active route (sequence of centres + processing facility)
+- Update pickup status per stop: `Pending → Arrived → Collected → Completed`
+- Mark route as completed on return to the processing facility (triggers centre stock reset)
+
+### 3.4 Administrator
+- Manage users (create/deactivate citizens, centre staff, drivers; assign roles)
+- Manage collection centres (CRUD: name, address, lat/long, capacity, threshold %)
+- Manage vehicles (CRUD: registration number, capacity, assign driver, status)
+- Review auto-generated and manual pickup requests; assign vehicle + driver
+- Trigger route generation (capacity-aware grouping + nearest-neighbour sequencing)
+- Verify/reject hotspot reports; assign cleanup actions (driver/vehicle, estimated quantity)
+- Configure reward rules (credit cost per reward, credits earned per kg/category)
+- View analytics dashboard: total collected by centre/category/time, pending pickups, hotspot counts and resolution time trend, citizen participation, vehicle activity log
+
+---
+
+## 4. Database Schema (MongoDB / Mongoose)
+
+```
+users
+  userId, name, email, passwordHash, role [citizen|centre|driver|admin],
+  credits, status [active|inactive], createdAt
+
+centres
+  centreId, name, address, lat, long, capacity, currentQuantity,
+  thresholdPercent (default 80), status [active|inactive]
+
+plasticDeposits
+  depositId, citizenId, centreId, category, weight, timestamp, creditsEarned
+
+vehicles
+  vehicleId, registrationNumber, capacity, driverId, status [available|on-route|maintenance],
+  currentLocation { lat, long }
+
+pickupRequests
+  requestId, centreId, quantity, priority, assignedVehicle, assignedDriver,
+  status [pending|assigned|in-progress|completed], createdAt
+
+routes
+  routeId, vehicleId, driverId, centreSequence [ordered centreIds],
+  estimatedDistance, totalQuantity, status [planned|active|completed]
+
+hotspotReports
+  reportId, citizenId, location, lat, long, description, severity,
+  status [Reported|Verified|Assigned|Resolved|Rejected], createdAt, resolvedAt
+
+cleanupActions
+  actionId, hotspotReportId, assignedDriver, assignedVehicle,
+  estimatedQuantity, status [pending|in-progress|completed]
+
+rewards
+  rewardId, name, creditCost
+
+rewardTransactions
+  transactionId, citizenId, rewardId, creditsUsed, status [completed|failed], timestamp
+```
+
+---
+
+## 5. REST API Endpoints (suggested)
+
+### Auth (public)
+```
+POST /api/auth/register        Register citizen/centre/driver (role-scoped)
+POST /api/auth/login           Returns JWT { token, role, userId }
+```
+
+### Citizen (role: citizen)
+```
+GET  /api/citizen/centres              List/search nearby centres
+POST /api/citizen/deposits             Submit a deposit (or view pending verification)
+GET  /api/citizen/deposits/history     Own deposit history + credits earned
+GET  /api/citizen/credits              Current credit balance
+POST /api/citizen/rewards/redeem       Redeem a reward (validates credit balance)
+POST /api/citizen/hotspots             Report a hotspot
+GET  /api/citizen/hotspots/mine        Own hotspot reports + status
+```
+
+### Centre Staff (role: centre)
+```
+POST /api/centre/deposits              Record a citizen deposit (category, weight)
+GET  /api/centre/stock                 Current stock vs. capacity/threshold
+GET  /api/centre/pickups               Pending/active pickup requests for this centre
+```
+
+### Driver (role: driver)
+```
+GET  /api/driver/route/active          Currently assigned route + stop sequence
+PATCH /api/driver/route/:routeId/stop/:centreId/status   Update stop status
+PATCH /api/driver/route/:routeId/complete                 Mark route completed
+```
+
+### Admin (role: admin)
+```
+GET/POST/PUT/DELETE /api/admin/users
+GET/POST/PUT/DELETE /api/admin/centres
+GET/POST/PUT/DELETE /api/admin/vehicles
+GET  /api/admin/pickup-requests                 List pending requests
+POST /api/admin/pickup-requests/:id/assign       Assign vehicle + driver
+POST /api/admin/routes/generate                  Run capacity-aware + nearest-neighbour routing
+GET  /api/admin/hotspots
+PATCH /api/admin/hotspots/:id/verify              Verify / reject
+POST /api/admin/hotspots/:id/cleanup-action       Assign cleanup
+GET/POST/PUT /api/admin/rewards                   Manage reward rules
+GET  /api/admin/analytics                         Dashboard metrics
+```
+
+---
+
+## 6. Core Business Logic (Algorithms)
+
+### 6.1 Threshold-Trigger Logic
+```
+On every deposit update to a centre:
+  if (centre.currentQuantity / centre.capacity) >= centre.thresholdPercent / 100:
+      create pickupRequest (status = "pending") if one doesn't already exist for this centre
+```
+
+### 6.2 Vehicle Capacity Constraint (bin-packing style grouping)
+```
+Given a set of pending pickupRequests and an available vehicle (capacity C):
+  sort requests by priority (desc), then by quantity (desc)
+  greedily add requests to the current group while sum(quantity) <= C
+  when adding the next request would exceed C, start a new group/route
+  repeat until all pending requests are grouped
+```
+
+### 6.3 Nearest-Neighbour / Greedy Routing
+```
+Given a group of centres + the processing facility as the depot:
+  current = depot
+  unvisited = group centres
+  route = [depot]
+  while unvisited is not empty:
+      next = centre in unvisited with minimum distance(current, centre)
+      route.append(next)
+      current = next
+      remove next from unvisited
+  route.append(depot)   // return to facility
+  estimatedDistance = sum of consecutive leg distances
+```
+Distance can be computed via the Haversine formula on lat/long, or via a mapping API for real road distance.
+
+---
+
+## 7. Key Workflows
+
+**Deposit → Pickup → Collection**
+1. Citizen deposits plastic at a centre → centre staff verifies → credits awarded, `currentQuantity` updated
+2. System checks `currentQuantity / capacity` against threshold → generates `pickupRequest` if crossed
+3. Admin assigns vehicle + driver → system groups pending requests by vehicle capacity → generates route via nearest-neighbour
+4. Driver executes route, updating each stop's status (`Pending → Arrived → Collected → Completed`)
+5. On completion, plastic recorded at the processing facility; centre `currentQuantity` reset; dashboards/statistics updated
+
+**Hotspot Reporting**
+1. Citizen submits report (`status: Reported`)
+2. Admin verifies (`Verified`) or rejects (`Rejected`, e.g. duplicate/invalid)
+3. Admin assigns a cleanup action (driver/vehicle, estimated quantity) (`Assigned`)
+4. On completion, report marked `Resolved`; resolution time tracked for analytics
+
+---
+
+## 8. Non-Functional Requirements
+
+- **Security:** bcrypt-hashed passwords; JWT with short expiry + refresh strategy; role-checked middleware on every protected route
+- **Validation:** reject redemptions exceeding credit balance; reject duplicate pickup requests per centre; reject non-numeric/negative weights
+- **Scalability (mini-project scope):** MongoDB document model suits flexible, independently-scaling collections (users, deposits, routes, hotspots)
+- **Auditability:** every deposit, credit transaction, and route status change is timestamped for later reporting
+
+---
+
+## 9. Suggested Replit Project Structure
+
+```
+/backend
+  /models        (Mongoose schemas: User, Centre, Deposit, Vehicle, PickupRequest, Route, HotspotReport, Reward)
+  /routes        (auth.js, citizen.js, centre.js, driver.js, admin.js)
+  /middleware    (auth.js — JWT verify + role guard)
+  /services      (routingService.js — capacity grouping + nearest-neighbour; rewardService.js)
+  /controllers
+  server.js
+  .env           (MONGO_URI, JWT_SECRET, PORT)
+
+/frontend
+  /src
+    /pages       (CitizenDashboard, CentreDashboard, DriverDashboard, AdminDashboard)
+    /components  (role-specific widgets, route map/list, forms)
+    /api         (axios client + endpoint wrappers)
+    /context     (AuthContext for JWT/role state)
+  package.json
+```
+
+### Environment Variables
+```
+MONGO_URI=<connection string>
+JWT_SECRET=<random secret>
+JWT_EXPIRY=1d
+PORT=5000
+```
+
+---
+
+## 10. Test Cases Checklist
+
+| ID | Test | Expected Result |
+|---|---|---|
+| TC-01 | Launch application | Login/home screen loads |
+| TC-02 | Citizen registers/logs in | Access to citizen dashboard |
+| TC-03 | Citizen deposits valid weight/category | Deposit recorded; credits calculated |
+| TC-04 | Centre crosses threshold | Pickup request auto-generated |
+| TC-05 | Pending requests exceed vehicle capacity | Requests split across multiple routes |
+| TC-06 | Route generated for multiple centres | Valid, capacity-respecting sequence |
+| TC-07 | Driver updates pickup status | Correct status transitions |
+| TC-08 | Citizen submits hotspot report | Stored as "Reported", visible to admin |
+| TC-09 | Admin verifies duplicate/invalid hotspot | Marked "Rejected" |
+| TC-10 | Citizen redeems reward exceeding balance | Blocked with insufficient-credit message |
+| TC-11 | Non-admin accesses admin-only route | Access denied |
+| TC-12 | Invalid login credentials | Login rejected with error message |
+
+---
+
+## 11. Build Order (recommended for Replit)
+
+1. Backend scaffolding + MongoDB connection + User model + JWT auth
+2. Centre + Deposit models/endpoints + threshold-trigger logic
+3. Vehicle + PickupRequest models + capacity-grouping + nearest-neighbour routing service
+4. Driver route-status endpoints
+5. HotspotReport + CleanupAction workflow
+6. Reward + RewardTransaction endpoints
+7. Admin analytics endpoint (aggregation queries)
+8. React frontend: auth context → role-based routing → 4 dashboards, built in the same order as the backend modules above

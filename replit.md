@@ -1,6 +1,6 @@
-# [Project name]
+# Plastic Loop
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Plastic Loop helps communities track plastic deposits, centre capacity, pickup routing, driver progress, and hotspot reports in one operations hub.
 
 ## Run & Operate
 
@@ -22,23 +22,32 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/plastic-loop` — React dashboard with role-aware navigation and workflow pages
+- `artifacts/api-server/src/routes/plastic-loop.ts` — MVP API handlers and seeded workflow data
+- `lib/api-spec/openapi.yaml` — source-of-truth API contract
+- `lib/api-client-react/src/generated` — generated React Query client and schemas
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- The MVP uses the shared Express API and generated OpenAPI client so frontend requests stay contract-driven.
+- The first build uses in-memory seeded data to make the workflow demonstrable without delaying the product surface on schema setup.
+- Pickup requests are created when a centre crosses its configured capacity threshold, and route generation greedily respects vehicle capacity.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- Overview dashboard with collection totals, material mix, weekly rhythm, and recent activity
+- Deposit recording with automatic credits and threshold-triggered pickup creation
+- Centre capacity monitoring, pickup queue, route planning, and driver stop status updates
+- Hotspot reporting with severity and status tracking
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+No additional preferences recorded.
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- API timestamps must be ISO-formatted because the frontend formats them as dates and times.
+- Run API codegen after changing `lib/api-spec/openapi.yaml`.
 
 ## Pointers
 
