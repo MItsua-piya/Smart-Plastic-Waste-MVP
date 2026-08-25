@@ -1,0 +1,17 @@
+I've uploaded a full technical specification document (Smart_Plastic_Waste_Management_Spec.md) for a project called "Smart Plastic Waste Management and Rerouting System." Read that file first, then build the project exactly as it describes.
+
+Build order:
+1. Set up a Node.js + Express backend with MongoDB (via Mongoose). Create .env with MONGO_URI, JWT_SECRET, JWT_EXPIRY, PORT.
+2. Implement all 8 Mongoose models exactly as specified in the "Database Schema" section: users, centres, plasticDeposits, vehicles, pickupRequests, routes, hotspotReports, cleanupActions, rewards, rewardTransactions.
+3. Implement JWT-based authentication with a "role" claim (citizen, centre, driver, admin) and bcrypt password hashing. Add middleware that blocks any request where the token's role doesn't match the required role for that route.
+4. Implement all REST API endpoints listed in the spec, grouped by role: /api/auth, /api/citizen, /api/centre, /api/driver, /api/admin.
+5. Implement the three core algorithms exactly as pseudocoded in section 6:
+   - Threshold-trigger logic (auto-generate a pickup request when currentQuantity/capacity crosses thresholdPercent)
+   - Vehicle capacity-constrained grouping (bin-packing style) for pending pickup requests
+   - Nearest-neighbour greedy routing starting and ending at the processing facility, using Haversine distance on lat/long
+6. Implement the two key workflows from section 7: deposit → threshold check → pickup request → admin assigns vehicle/driver → route generation → driver executes stops (Pending → Arrived → Collected → Completed) → completion resets centre stock; and hotspot reporting (Reported → Verified/Rejected → Assigned → Resolved).
+7. Build a React frontend with role-based routing and four dashboards (Citizen, Centre Staff, Driver, Admin), each only showing the actions available to that role as described in the spec.
+8. Follow the suggested folder structure in section 9 (/backend with models, routes, middleware, services, controllers; /frontend with pages, components, api, context).
+9. After building, verify against the Test Cases Checklist in section 10 — make sure each one passes.
+
+Use the spec document as the single source of truth for schema fields, endpoint names, and business rules — don't invent additional fields or endpoints not listed there.
