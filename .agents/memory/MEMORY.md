@@ -1,1 +1,2 @@
 - [OpenAPI and Zod compatibility](openapi-zod-compatibility.md) — generated integer validators currently conflict with the installed Zod runtime.
+- [Auth session decision](auth-session-decision.md) — signed JWT + bcrypt sessions are authoritative for role access.

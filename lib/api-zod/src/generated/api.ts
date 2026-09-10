@@ -9,6 +9,66 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary Register a citizen or role-scoped user
+ */
+export const registerBodyNameMin = 2;
+
+export const registerBodyPasswordMin = 8;
+
+
+
+export const RegisterBody = zod.object({
+  "name": zod.string().min(registerBodyNameMin),
+  "email": zod.string(),
+  "password": zod.string().min(registerBodyPasswordMin),
+  "role": zod.enum(['citizen', 'centre', 'driver'])
+})
+
+export const RegisterResponse = zod.object({
+  "token": zod.string(),
+  "user": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "role": zod.string()
+})
+})
+
+
+/**
+ * @summary Log in with email and password
+ */
+
+
+
+export const LoginBody = zod.object({
+  "email": zod.string(),
+  "password": zod.string().min(1)
+})
+
+export const LoginResponse = zod.object({
+  "token": zod.string(),
+  "user": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "role": zod.string()
+})
+})
+
+
+/**
+ * @summary Get the current session user
+ */
+export const GetCurrentUserResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "role": zod.string()
+})
+
+
+/**
  * @summary Health check
  */
 export const HealthCheckResponse = zod.object({
@@ -225,6 +285,204 @@ export const CreateHotspotResponse = zod.object({
   "severity": zod.string(),
   "status": zod.string(),
   "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Get the current citizen credit balance
+ */
+export const GetCreditsResponse = zod.object({
+  "availableCredits": zod.number(),
+  "totalEarned": zod.number(),
+  "totalRedeemed": zod.number()
+})
+
+
+/**
+ * @summary List available rewards
+ */
+export const ListRewardsResponseItem = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "description": zod.string(),
+  "creditCost": zod.number(),
+  "status": zod.string()
+})
+export const ListRewardsResponse = zod.array(ListRewardsResponseItem)
+
+
+/**
+ * @summary Redeem a reward using credits
+ */
+export const RedeemRewardBody = zod.object({
+  "rewardId": zod.string()
+})
+
+export const RedeemRewardResponse = zod.object({
+  "id": zod.string(),
+  "rewardName": zod.string(),
+  "creditsUsed": zod.number(),
+  "status": zod.string(),
+  "timestamp": zod.string()
+})
+
+
+/**
+ * @summary Get administrator analytics
+ */
+export const GetAdminAnalyticsResponse = zod.object({
+  "totalCollected": zod.number(),
+  "activeCitizens": zod.number(),
+  "routeCompletionRate": zod.number(),
+  "averageResolutionHours": zod.number(),
+  "monthlyCollection": zod.array(zod.number()),
+  "centrePerformance": zod.array(zod.object({
+  "centreName": zod.string(),
+  "quantity": zod.number(),
+  "utilization": zod.number()
+})),
+  "hotspotCounts": zod.record(zod.string(), zod.number())
+})
+
+
+/**
+ * @summary List platform users
+ */
+export const ListAdminUsersResponseItem = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "role": zod.string(),
+  "status": zod.string()
+})
+export const ListAdminUsersResponse = zod.array(ListAdminUsersResponseItem)
+
+
+/**
+ * @summary List fleet vehicles
+ */
+export const ListAdminVehiclesResponseItem = zod.object({
+  "id": zod.string(),
+  "registrationNumber": zod.string(),
+  "capacity": zod.number(),
+  "status": zod.string(),
+  "driver": zod.string()
+})
+export const ListAdminVehiclesResponse = zod.array(ListAdminVehiclesResponseItem)
+
+
+/**
+ * @summary List configured rewards
+ */
+export const ListAdminRewardsResponseItem = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "description": zod.string(),
+  "creditCost": zod.number(),
+  "status": zod.string()
+})
+export const ListAdminRewardsResponse = zod.array(ListAdminRewardsResponseItem)
+
+
+/**
+ * @summary Create a reward
+ */
+
+
+
+
+
+export const CreateAdminRewardBody = zod.object({
+  "name": zod.string().min(1),
+  "description": zod.string().min(1),
+  "creditCost": zod.number().min(1)
+})
+
+export const CreateAdminRewardResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "description": zod.string(),
+  "creditCost": zod.number(),
+  "status": zod.string()
+})
+
+
+/**
+ * @summary Verify or reject a hotspot report
+ */
+export const UpdateHotspotStatusParams = zod.object({
+  "hotspotId": zod.coerce.string()
+})
+
+export const UpdateHotspotStatusBody = zod.object({
+  "status": zod.enum(['Verified', 'Rejected'])
+})
+
+export const UpdateHotspotStatusResponse = zod.object({
+  "id": zod.string(),
+  "location": zod.string(),
+  "description": zod.string(),
+  "severity": zod.string(),
+  "status": zod.string(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Assign cleanup for a verified hotspot
+ */
+export const CreateCleanupActionParams = zod.object({
+  "hotspotId": zod.coerce.string()
+})
+
+export const createCleanupActionBodyEstimatedQuantityMin = 0;
+
+
+
+export const CreateCleanupActionBody = zod.object({
+  "assignedDriver": zod.string(),
+  "estimatedQuantity": zod.number().min(createCleanupActionBodyEstimatedQuantityMin)
+})
+
+export const CreateCleanupActionResponse = zod.object({
+  "id": zod.string(),
+  "hotspotReportId": zod.string(),
+  "assignedDriver": zod.string(),
+  "estimatedQuantity": zod.number(),
+  "status": zod.string()
+})
+
+
+/**
+ * @summary List cleanup actions
+ */
+export const ListCleanupActionsResponseItem = zod.object({
+  "id": zod.string(),
+  "hotspotReportId": zod.string(),
+  "assignedDriver": zod.string(),
+  "estimatedQuantity": zod.number(),
+  "status": zod.string()
+})
+export const ListCleanupActionsResponse = zod.array(ListCleanupActionsResponseItem)
+
+
+/**
+ * @summary Update cleanup action status
+ */
+export const UpdateCleanupActionStatusParams = zod.object({
+  "actionId": zod.coerce.string()
+})
+
+export const UpdateCleanupActionStatusBody = zod.object({
+  "status": zod.enum(['pending', 'in-progress', 'completed'])
+})
+
+export const UpdateCleanupActionStatusResponse = zod.object({
+  "id": zod.string(),
+  "hotspotReportId": zod.string(),
+  "assignedDriver": zod.string(),
+  "estimatedQuantity": zod.number(),
+  "status": zod.string()
 })
 
 

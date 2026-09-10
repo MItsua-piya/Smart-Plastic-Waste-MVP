@@ -1,13 +1,23 @@
 import { Router, type IRouter } from "express";
 import {
   CreateDepositBody,
+  CreateAdminRewardBody,
+  CreateCleanupActionBody,
   CreateHotspotBody,
+  GetAdminAnalyticsResponse,
+  RedeemRewardBody,
   GenerateRouteBody,
+  UpdateCleanupActionStatusBody,
+  UpdateCleanupActionStatusParams,
+  UpdateHotspotStatusBody,
+  UpdateHotspotStatusParams,
   UpdateRouteStopBody,
   UpdateRouteStopParams,
 } from "@workspace/api-zod";
+import { authenticate, requireRole } from "../middleware/auth";
 
 const router: IRouter = Router();
+router.use(authenticate);
 
 type Centre = {
   id: string; name: string; address: string; currentQuantity: number;
@@ -33,6 +43,8 @@ type Hotspot = {
   id: string; location: string; description: string; severity: string;
   status: string; createdAt: string;
 };
+type Reward = { id: string; name: string; description: string; creditCost: number; status: string };
+type CleanupAction = { id: string; hotspotReportId: string; assignedDriver: string; estimatedQuantity: number; status: string };
 
 const centres: Centre[] = [
   { id: "c1", name: "Indiranagar Loop", address: "12th Main, Indiranagar", currentQuantity: 386, capacity: 500, thresholdPercent: 80, status: "active", lat: 12.9716, long: 77.6412 },
@@ -66,12 +78,32 @@ const hotspots: Hotspot[] = [
   { id: "h1", location: "Ulsoor Lake East Gate", description: "Plastic packaging collecting beside the pedestrian path.", severity: "High", status: "Verified", createdAt: "2026-08-25T07:15:00+05:30" },
   { id: "h2", location: "Ejipura Junction", description: "Overflowing bin and loose plastic near the bus stop.", severity: "Medium", status: "Reported", createdAt: "2026-08-24T19:40:00+05:30" },
 ];
+const rewards: Reward[] = [
+  { id: "rw1", name: "Community tree planting", description: "Fund one native tree in a neighbourhood green space.", creditCost: 120, status: "active" },
+  { id: "rw2", name: "Refill station voucher", description: "A voucher for a partner refill station.", creditCost: 240, status: "active" },
+  { id: "rw3", name: "Loop champion kit", description: "Reusable essentials for your next collection run.", creditCost: 400, status: "active" },
+];
+const cleanupActions: CleanupAction[] = [
+  { id: "ca1", hotspotReportId: "h1", assignedDriver: "Vikram Singh", estimatedQuantity: 42, status: "in-progress" },
+];
+const vehicles = [
+  { id: "v1", registrationNumber: "KA 05 MJ 2048", capacity: 700, status: "on-route", driver: "Vikram Singh" },
+  { id: "v2", registrationNumber: "KA 03 HN 7712", capacity: 500, status: "available", driver: "Riya Kapoor" },
+  { id: "v3", registrationNumber: "KA 01 AB 4420", capacity: 900, status: "maintenance", driver: "Unassigned" },
+];
+const adminUsers = [
+  { id: "u-admin", name: "Amina Mensah", email: "admin@plasticloop.local", role: "admin", status: "active" },
+  { id: "u-citizen", name: "Ananya Rao", email: "citizen@plasticloop.local", role: "citizen", status: "active" },
+  { id: "u-centre", name: "Maya Shah", email: "centre@plasticloop.local", role: "centre", status: "active" },
+  { id: "u-driver", name: "Vikram Singh", email: "driver@plasticloop.local", role: "driver", status: "active" },
+];
+let citizenCredits = 680;
 
 const now = () => new Date().toISOString();
 const creditsFor = (category: string, weight: number) =>
   Math.round(weight * (category.includes("PET") ? 5 : category.includes("HDPE") ? 7 : 6));
 
-router.get("/dashboard", (_req, res) => {
+router.get("/dashboard", requireRole("citizen", "centre", "driver", "admin"), (_req, res) => {
   const totalCollected = 12480 + deposits.reduce((sum, item) => sum + item.weight, 0);
   res.json({
     totalCollected, activeCentres: centres.filter((c) => c.status === "active").length,
@@ -89,9 +121,9 @@ router.get("/dashboard", (_req, res) => {
   });
 });
 
-router.get("/centres", (_req, res) => res.json(centres));
-router.get("/deposits", (_req, res) => res.json(deposits));
-router.post("/deposits", (req, res) => {
+router.get("/centres", requireRole("citizen", "centre", "driver", "admin"), (_req, res) => res.json(centres));
+router.get("/deposits", requireRole("citizen", "centre", "admin"), (_req, res) => res.json(deposits));
+router.post("/deposits", requireRole("citizen", "centre", "admin"), (req, res) => {
   const parsed = CreateDepositBody.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Enter a valid citizen, centre, category, and positive weight." });
   const centre = centres.find((item) => item.id === parsed.data.centreId);
@@ -110,9 +142,9 @@ router.post("/deposits", (req, res) => {
   return res.status(201).json(deposit);
 });
 
-router.get("/pickups", (_req, res) => res.json(pickups));
-router.get("/routes/active", (_req, res) => res.json(activeRoute));
-router.post("/routes/generate", (req, res) => {
+router.get("/pickups", requireRole("centre", "driver", "admin"), (_req, res) => res.json(pickups));
+router.get("/routes/active", requireRole("driver", "admin"), (_req, res) => res.json(activeRoute));
+router.post("/routes/generate", requireRole("admin"), (req, res) => {
   const parsed = GenerateRouteBody.safeParse(req.body ?? {});
   const capacity = parsed.success && parsed.data.vehicleCapacity ? parsed.data.vehicleCapacity : 700;
   const pending = pickups.filter((item) => item.status === "pending").sort((a, b) => b.quantity - a.quantity);
@@ -128,7 +160,7 @@ router.post("/routes/generate", (req, res) => {
   selected.forEach((item) => { item.status = "assigned"; });
   return res.status(201).json(activeRoute);
 });
-router.patch("/routes/:routeId/stops/:stopId", (req, res) => {
+router.patch("/routes/:routeId/stops/:stopId", requireRole("driver", "admin"), (req, res) => {
   const params = UpdateRouteStopParams.safeParse(req.params);
   const body = UpdateRouteStopBody.safeParse(req.body);
   if (!params.success || !body.success) return res.status(400).json({ error: "Invalid route stop update." });
@@ -138,13 +170,82 @@ router.patch("/routes/:routeId/stops/:stopId", (req, res) => {
   return res.json(activeRoute);
 });
 
-router.get("/hotspots", (_req, res) => res.json(hotspots));
-router.post("/hotspots", (req, res) => {
+router.get("/hotspots", requireRole("citizen", "admin"), (_req, res) => res.json(hotspots));
+router.post("/hotspots", requireRole("citizen"), (req, res) => {
   const parsed = CreateHotspotBody.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Location and description are required." });
   const hotspot: Hotspot = { id: `h${hotspots.length + 1}`, location: parsed.data.location, description: parsed.data.description, severity: parsed.data.severity ?? "Medium", status: "Reported", createdAt: now() };
   hotspots.unshift(hotspot);
   return res.status(201).json(hotspot);
+});
+
+router.get("/credits", requireRole("citizen"), (_req, res) => {
+  res.json({ availableCredits: citizenCredits, totalEarned: 980, totalRedeemed: 300 });
+});
+router.get("/rewards", requireRole("citizen"), (_req, res) => res.json(rewards));
+router.post("/rewards/redeem", requireRole("citizen"), (req, res) => {
+  const parsed = RedeemRewardBody.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Choose a reward to redeem." });
+  const reward = rewards.find((item) => item.id === parsed.data.rewardId && item.status === "active");
+  if (!reward) return res.status(404).json({ error: "Reward not found." });
+  if (reward.creditCost > citizenCredits) return res.status(400).json({ error: "You do not have enough credits for this reward." });
+  citizenCredits -= reward.creditCost;
+  return res.status(201).json({ id: `rt${Date.now()}`, rewardName: reward.name, creditsUsed: reward.creditCost, status: "completed", timestamp: now() });
+});
+
+router.get("/admin/analytics", requireRole("admin"), (_req, res) => {
+  const resolved = hotspots.filter((item) => item.status === "Resolved").length;
+  const data = {
+    totalCollected: 12480 + deposits.reduce((sum, item) => sum + item.weight, 0),
+    activeCitizens: 186,
+    routeCompletionRate: 86,
+    averageResolutionHours: resolved ? 18 : 22,
+    monthlyCollection: [2820, 3180, 2970, 3540, 3820, 4120],
+    centrePerformance: centres.map((centre) => ({ centreName: centre.name, quantity: centre.currentQuantity, utilization: Math.round((centre.currentQuantity / centre.capacity) * 100) })),
+    hotspotCounts: { Reported: hotspots.filter((item) => item.status === "Reported").length, Verified: hotspots.filter((item) => item.status === "Verified").length, Resolved: resolved, Rejected: hotspots.filter((item) => item.status === "Rejected").length },
+  };
+  res.json(GetAdminAnalyticsResponse.parse(data));
+});
+router.get("/admin/users", requireRole("admin"), (_req, res) => res.json(adminUsers));
+router.get("/admin/vehicles", requireRole("admin"), (_req, res) => res.json(vehicles));
+router.get("/admin/rewards", requireRole("admin"), (_req, res) => res.json(rewards));
+router.post("/admin/rewards", requireRole("admin"), (req, res) => {
+  const parsed = CreateAdminRewardBody.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Reward name, description, and a positive cost are required." });
+  const reward: Reward = { id: `rw${rewards.length + 1}`, ...parsed.data, status: "active" };
+  rewards.push(reward);
+  return res.status(201).json(reward);
+});
+router.patch("/admin/hotspots/:hotspotId/status", requireRole("admin"), (req, res) => {
+  const params = UpdateHotspotStatusParams.safeParse(req.params);
+  const body = UpdateHotspotStatusBody.safeParse(req.body);
+  const hotspot = hotspots.find((item) => item.id === params.data?.hotspotId);
+  if (!params.success || !body.success || !hotspot) return res.status(404).json({ error: "Hotspot report not found." });
+  hotspot.status = body.data.status;
+  return res.json(hotspot);
+});
+router.post("/admin/hotspots/:hotspotId/cleanup-action", requireRole("admin"), (req, res) => {
+  const params = req.params.hotspotId;
+  const parsed = CreateCleanupActionBody.safeParse(req.body);
+  const hotspot = hotspots.find((item) => item.id === params);
+  if (!hotspot || !parsed.success) return res.status(400).json({ error: "Choose a report, driver, and estimated quantity." });
+  hotspot.status = "Assigned";
+  const action: CleanupAction = { id: `ca${cleanupActions.length + 1}`, hotspotReportId: hotspot.id, ...parsed.data, status: "pending" };
+  cleanupActions.push(action);
+  return res.status(201).json(action);
+});
+router.get("/admin/cleanup-actions", requireRole("admin"), (_req, res) => res.json(cleanupActions));
+router.patch("/admin/cleanup-actions/:actionId/status", requireRole("admin"), (req, res) => {
+  const params = UpdateCleanupActionStatusParams.safeParse(req.params);
+  const body = UpdateCleanupActionStatusBody.safeParse(req.body);
+  const action = cleanupActions.find((item) => item.id === params.data?.actionId);
+  if (!params.success || !body.success || !action) return res.status(404).json({ error: "Cleanup action not found." });
+  action.status = body.data.status;
+  if (action.status === "completed") {
+    const hotspot = hotspots.find((item) => item.id === action.hotspotReportId);
+    if (hotspot) hotspot.status = "Resolved";
+  }
+  return res.json(action);
 });
 
 export default router;

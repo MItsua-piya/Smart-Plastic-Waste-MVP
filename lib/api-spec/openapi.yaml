@@ -8,6 +8,7 @@ servers:
     description: Base API path
 tags:
   - name: health
+  - name: auth
   - name: dashboard
   - name: centres
   - name: deposits
@@ -15,6 +16,58 @@ tags:
   - name: routes
   - name: hotspots
 paths:
+  /auth/register:
+    post:
+      operationId: register
+      tags: [auth]
+      summary: Register a citizen or role-scoped user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterInput"
+      responses:
+        "201":
+          description: Registered user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSession"
+        "409":
+          description: Email already registered
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Log in with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Authenticated session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSession"
+        "401":
+          description: Invalid credentials
+  /auth/me:
+    get:
+      operationId: getCurrentUser
+      tags: [auth]
+      summary: Get the current session user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrentUser"
   /healthz:
     get:
       operationId: healthCheck
@@ -180,6 +233,198 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Hotspot"
+  /credits:
+    get:
+      operationId: getCredits
+      tags: [rewards]
+      summary: Get the current citizen credit balance
+      responses:
+        "200":
+          description: Credit balance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreditBalance"
+  /rewards:
+    get:
+      operationId: listRewards
+      tags: [rewards]
+      summary: List available rewards
+      responses:
+        "200":
+          description: Rewards
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Reward"
+  /rewards/redeem:
+    post:
+      operationId: redeemReward
+      tags: [rewards]
+      summary: Redeem a reward using credits
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RedeemInput"
+      responses:
+        "201":
+          description: Reward redeemed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RewardTransaction"
+  /admin/analytics:
+    get:
+      operationId: getAdminAnalytics
+      tags: [admin]
+      summary: Get administrator analytics
+      responses:
+        "200":
+          description: Analytics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAnalytics"
+  /admin/users:
+    get:
+      operationId: listAdminUsers
+      tags: [admin]
+      summary: List platform users
+      responses:
+        "200":
+          description: Users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminUser"
+  /admin/vehicles:
+    get:
+      operationId: listAdminVehicles
+      tags: [admin]
+      summary: List fleet vehicles
+      responses:
+        "200":
+          description: Vehicles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Vehicle"
+  /admin/rewards:
+    get:
+      operationId: listAdminRewards
+      tags: [admin]
+      summary: List configured rewards
+      responses:
+        "200":
+          description: Rewards
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Reward"
+    post:
+      operationId: createAdminReward
+      tags: [admin]
+      summary: Create a reward
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RewardInput"
+      responses:
+        "201":
+          description: Reward created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reward"
+  /admin/hotspots/{hotspotId}/status:
+    patch:
+      operationId: updateHotspotStatus
+      tags: [admin]
+      summary: Verify or reject a hotspot report
+      parameters:
+        - $ref: "#/components/parameters/HotspotId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HotspotStatusInput"
+      responses:
+        "200":
+          description: Updated hotspot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Hotspot"
+  /admin/hotspots/{hotspotId}/cleanup-action:
+    post:
+      operationId: createCleanupAction
+      tags: [admin]
+      summary: Assign cleanup for a verified hotspot
+      parameters:
+        - $ref: "#/components/parameters/HotspotId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CleanupActionInput"
+      responses:
+        "201":
+          description: Cleanup action created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CleanupAction"
+  /admin/cleanup-actions:
+    get:
+      operationId: listCleanupActions
+      tags: [admin]
+      summary: List cleanup actions
+      responses:
+        "200":
+          description: Cleanup actions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CleanupAction"
+  /admin/cleanup-actions/{actionId}/status:
+    patch:
+      operationId: updateCleanupActionStatus
+      tags: [admin]
+      summary: Update cleanup action status
+      parameters:
+        - name: actionId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CleanupStatusInput"
+      responses:
+        "200":
+          description: Updated cleanup action
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CleanupAction"
 components:
   parameters:
     RouteId:
@@ -192,7 +437,152 @@ components:
       in: path
       required: true
       schema: { type: string }
+    HotspotId:
+      name: hotspotId
+      in: path
+      required: true
+      schema: { type: string }
   schemas:
+    CreditBalance:
+      type: object
+      required: [availableCredits, totalEarned, totalRedeemed]
+      properties:
+        availableCredits: { type: number }
+        totalEarned: { type: number }
+        totalRedeemed: { type: number }
+    Reward:
+      type: object
+      required: [id, name, description, creditCost, status]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        description: { type: string }
+        creditCost: { type: number }
+        status: { type: string }
+    RewardInput:
+      type: object
+      required: [name, description, creditCost]
+      properties:
+        name: { type: string, minLength: 1 }
+        description: { type: string, minLength: 1 }
+        creditCost: { type: number, minimum: 1 }
+    RedeemInput:
+      type: object
+      required: [rewardId]
+      properties:
+        rewardId: { type: string }
+    RewardTransaction:
+      type: object
+      required: [id, rewardName, creditsUsed, status, timestamp]
+      properties:
+        id: { type: string }
+        rewardName: { type: string }
+        creditsUsed: { type: number }
+        status: { type: string }
+        timestamp: { type: string }
+    AdminUser:
+      type: object
+      required: [id, name, email, role, status]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        email: { type: string }
+        role: { type: string }
+        status: { type: string }
+    Vehicle:
+      type: object
+      required: [id, registrationNumber, capacity, status, driver]
+      properties:
+        id: { type: string }
+        registrationNumber: { type: string }
+        capacity: { type: number }
+        status: { type: string }
+        driver: { type: string }
+    AdminAnalytics:
+      type: object
+      required: [totalCollected, activeCitizens, routeCompletionRate, averageResolutionHours, monthlyCollection, centrePerformance, hotspotCounts]
+      properties:
+        totalCollected: { type: number }
+        activeCitizens: { type: number }
+        routeCompletionRate: { type: number }
+        averageResolutionHours: { type: number }
+        monthlyCollection:
+          type: array
+          items: { type: number }
+        centrePerformance:
+          type: array
+          items:
+            $ref: "#/components/schemas/CentreMetric"
+        hotspotCounts:
+          type: object
+          additionalProperties: { type: number }
+    CentreMetric:
+      type: object
+      required: [centreName, quantity, utilization]
+      properties:
+        centreName: { type: string }
+        quantity: { type: number }
+        utilization: { type: number }
+    CleanupAction:
+      type: object
+      required: [id, hotspotReportId, assignedDriver, estimatedQuantity, status]
+      properties:
+        id: { type: string }
+        hotspotReportId: { type: string }
+        assignedDriver: { type: string }
+        estimatedQuantity: { type: number }
+        status: { type: string }
+    CleanupActionInput:
+      type: object
+      required: [assignedDriver, estimatedQuantity]
+      properties:
+        assignedDriver: { type: string }
+        estimatedQuantity: { type: number, minimum: 0 }
+    CleanupStatusInput:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [pending, in-progress, completed]
+    HotspotStatusInput:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [Verified, Rejected]
+    RegisterInput:
+      type: object
+      required: [name, email, password, role]
+      properties:
+        name: { type: string, minLength: 2 }
+        email: { type: string }
+        password: { type: string, minLength: 8 }
+        role:
+          type: string
+          enum: [citizen, centre, driver]
+    LoginInput:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string }
+        password: { type: string, minLength: 1 }
+    AuthSession:
+      type: object
+      required: [token, user]
+      properties:
+        token: { type: string }
+        user:
+          $ref: "#/components/schemas/CurrentUser"
+    CurrentUser:
+      type: object
+      required: [id, name, email, role]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        email: { type: string }
+        role: { type: string }
     HealthStatus:
       type: object
       properties:

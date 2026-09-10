@@ -5,6 +5,150 @@
  * Smart Plastic Waste Management API
  * OpenAPI spec version: 0.1.0
  */
+export interface CreditBalance {
+  availableCredits: number;
+  totalEarned: number;
+  totalRedeemed: number;
+}
+
+export interface Reward {
+  id: string;
+  name: string;
+  description: string;
+  creditCost: number;
+  status: string;
+}
+
+export interface RewardInput {
+  /** @minLength 1 */
+  name: string;
+  /** @minLength 1 */
+  description: string;
+  /** @minimum 1 */
+  creditCost: number;
+}
+
+export interface RedeemInput {
+  rewardId: string;
+}
+
+export interface RewardTransaction {
+  id: string;
+  rewardName: string;
+  creditsUsed: number;
+  status: string;
+  timestamp: string;
+}
+
+export interface AdminUser {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  status: string;
+}
+
+export interface Vehicle {
+  id: string;
+  registrationNumber: string;
+  capacity: number;
+  status: string;
+  driver: string;
+}
+
+export type AdminAnalyticsHotspotCounts = {[key: string]: number};
+
+export interface CentreMetric {
+  centreName: string;
+  quantity: number;
+  utilization: number;
+}
+
+export interface AdminAnalytics {
+  totalCollected: number;
+  activeCitizens: number;
+  routeCompletionRate: number;
+  averageResolutionHours: number;
+  monthlyCollection: number[];
+  centrePerformance: CentreMetric[];
+  hotspotCounts: AdminAnalyticsHotspotCounts;
+}
+
+export interface CleanupAction {
+  id: string;
+  hotspotReportId: string;
+  assignedDriver: string;
+  estimatedQuantity: number;
+  status: string;
+}
+
+export interface CleanupActionInput {
+  assignedDriver: string;
+  /** @minimum 0 */
+  estimatedQuantity: number;
+}
+
+export type CleanupStatusInputStatus = typeof CleanupStatusInputStatus[keyof typeof CleanupStatusInputStatus];
+
+
+export const CleanupStatusInputStatus = {
+  pending: 'pending',
+  'in-progress': 'in-progress',
+  completed: 'completed',
+} as const;
+
+export interface CleanupStatusInput {
+  status: CleanupStatusInputStatus;
+}
+
+export type HotspotStatusInputStatus = typeof HotspotStatusInputStatus[keyof typeof HotspotStatusInputStatus];
+
+
+export const HotspotStatusInputStatus = {
+  Verified: 'Verified',
+  Rejected: 'Rejected',
+} as const;
+
+export interface HotspotStatusInput {
+  status: HotspotStatusInputStatus;
+}
+
+export type RegisterInputRole = typeof RegisterInputRole[keyof typeof RegisterInputRole];
+
+
+export const RegisterInputRole = {
+  citizen: 'citizen',
+  centre: 'centre',
+  driver: 'driver',
+} as const;
+
+export interface RegisterInput {
+  /** @minLength 2 */
+  name: string;
+  email: string;
+  /** @minLength 8 */
+  password: string;
+  role: RegisterInputRole;
+}
+
+export interface LoginInput {
+  email: string;
+  /** @minLength 1 */
+  password: string;
+}
+
+export interface CurrentUser {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+}
+
+export interface AuthSession {
+  token: string;
+  user: CurrentUser;
+}
+
 export interface HealthStatus {
   status: string;
 }
