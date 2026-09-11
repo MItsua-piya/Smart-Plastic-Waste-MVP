@@ -1,5 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { connectMongo, seedMongo } from "./lib/mongo";
 
 const rawPort = process.env["PORT"];
 
@@ -15,11 +16,18 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-app.listen(port, (err) => {
-  if (err) {
-    logger.error({ err }, "Error listening on port");
+connectMongo()
+  .then(seedMongo)
+  .then(() => {
+    app.listen(port, (err) => {
+      if (err) {
+        logger.error({ err }, "Error listening on port");
+        process.exit(1);
+      }
+      logger.info({ port, storage: "mongodb" }, "Server listening");
+    });
+  })
+  .catch((error) => {
+    logger.error({ error }, "MongoDB initialization failed");
     process.exit(1);
-  }
-
-  logger.info({ port }, "Server listening");
-});
+  });

@@ -8,14 +8,13 @@ Plastic Loop helps communities track plastic deposits, centre capacity, pickup r
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- Required secret: `MONGODB_URI` — MongoDB connection string
 
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
 - API: Express 5
-- DB: PostgreSQL + Drizzle ORM
+- DB: MongoDB + Mongoose
 - Validation: Zod (`zod/v4`), `drizzle-zod`
 - API codegen: Orval (from OpenAPI spec)
 - Build: esbuild (CJS bundle)
@@ -25,7 +24,8 @@ Plastic Loop helps communities track plastic deposits, centre capacity, pickup r
 - `artifacts/plastic-loop` — React dashboard with role-aware navigation and workflow pages
 - `artifacts/plastic-loop/src/pages/admin.tsx` — administrator analytics, hotspot decisions, cleanup actions, users, fleet, and rewards
 - `artifacts/plastic-loop/src/pages/rewards.tsx` — citizen credit balance and redemption
-- `artifacts/api-server/src/routes/plastic-loop.ts` — MVP API handlers and seeded workflow data
+- `artifacts/api-server/src/lib/mongo.ts` — Mongoose models, MongoDB connection, and idempotent seed data
+- `artifacts/api-server/src/routes/plastic-loop.ts` — persistent workflow API handlers
 - `lib/api-spec/openapi.yaml` — source-of-truth API contract
 - `lib/api-client-react/src/generated` — generated React Query client and schemas
 
@@ -33,7 +33,7 @@ Plastic Loop helps communities track plastic deposits, centre capacity, pickup r
 
 - The MVP uses the shared Express API and generated OpenAPI client so frontend requests stay contract-driven.
 - Authentication uses bcrypt password hashing and signed JWT role claims; protected API handlers enforce the role from the token instead of trusting UI state.
-- The first build uses in-memory seeded data to make the workflow demonstrable without delaying the product surface on schema setup.
+- The API uses Mongoose models for all domain entities and transaction records; startup seeding only runs when each MongoDB collection is empty.
 - Pickup requests are created when a centre crosses its configured capacity threshold, and route generation greedily respects vehicle capacity.
 
 ## Product
