@@ -5,6 +5,7 @@ Plastic Loop helps communities track plastic deposits, centre capacity, pickup r
 ## Run & Operate
 
 - `pnpm --filter @workspace/api-server run dev` — run the API server (managed workflow port 8080)
+- `pnpm --filter @workspace/api-server test` — run isolated API role/workflow smoke tests (requires `MONGODB_URI` or `MONGODB_TEST_URI`)
 - `pnpm --filter @workspace/plastic-loop run dev` — run the dashboard (managed workflow port 24081, preview at `/`)
 - `pnpm --filter @workspace/mockup-sandbox run dev` — run the component preview server (managed workflow port 8081, preview at `/__mockup`)
 - `pnpm run typecheck` — full typecheck across all packages

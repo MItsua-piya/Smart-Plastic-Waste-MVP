@@ -1,2 +1,3 @@
 - [OpenAPI and Zod compatibility](openapi-zod-compatibility.md) — generated integer validators currently conflict with the installed Zod runtime.
 - [Auth session decision](auth-session-decision.md) — signed JWT + bcrypt sessions are authoritative for role access.
+- [API smoke test harness](api-smoke-test-harness.md) — bundle workspace TypeScript and force a unique MongoDB test database before importing the app.

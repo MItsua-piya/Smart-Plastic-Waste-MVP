@@ -1,12 +1,13 @@
 import bcrypt from "bcryptjs";
 import mongoose, { Schema, type InferSchemaType, type Model } from "mongoose";
 
-const mongoUri = process.env.MONGODB_URI ?? "";
+const mongoUri = process.env.MONGODB_TEST_URI ?? process.env.MONGODB_URI ?? "";
 if (!mongoUri) throw new Error("MONGODB_URI must be configured for the MERN API.");
 
 export async function connectMongo() {
   if (mongoose.connection.readyState === 1) return;
   await mongoose.connect(mongoUri, {
+    ...(process.env.MONGODB_DB_NAME ? { dbName: process.env.MONGODB_DB_NAME } : {}),
     serverSelectionTimeoutMS: 15000,
     family: 4,
     tls: true,
