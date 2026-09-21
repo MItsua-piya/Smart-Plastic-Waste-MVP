@@ -2,7 +2,7 @@
 
 Plastic Loop helps communities track plastic deposits, centre capacity, pickup routing, driver progress, and hotspot reports in one operations hub.
 
-## Run & Operate
+## Run & Operate.
 
 - `pnpm --filter @workspace/api-server run dev` — run the API server (managed workflow port 8080)
 - `pnpm --filter @workspace/api-server test` — run isolated API role/workflow smoke tests (requires `MONGODB_URI` or `MONGODB_TEST_URI`)
